@@ -29,9 +29,9 @@ TEST_STT_LLM/
 └── requirements.txt          # 主應用程式 (app 服務) 所需的 Python 依賴
 
 ```
-請自行創件.env 檔內含OPEN_API_KEY
+請自行創件.env 檔
 ```
-
+OPEN_API_KEY=XXX
 ```
 建置並啟動 Docker 服務
 
