@@ -7,7 +7,7 @@
 TEST_STT_LLM/
 ├── app/                      # 主應用程式邏輯和資料庫模組
 │   ├── __init__.py           # 標示 'app' 為 Python 套件 (package)
-│   ├── chat.db               # SQLite 資料庫檔案 (由 Docker Volume 持久化)
+│   ├── chat.db               # SQLite 資料庫檔案 (暫時隱藏)
 │   ├── db.py                 # 資料庫操作模組 (SQLite 連結、儲存對話)
 │   └── main.py               # 主應用程式，作為 API Gateway 處理前端請求，並轉發至 STT/LLM 服務
 ├── models/                   # 存放大型模型檔案
@@ -27,4 +27,16 @@ TEST_STT_LLM/
 ├── docker-compose.yml        # Docker Compose 配置檔案，定義並協調所有服務的啟動
 ├── Dockerfile                # 主應用程式 (app 服務) 的 Docker 建置配置
 └── requirements.txt          # 主應用程式 (app 服務) 所需的 Python 依賴
+```
+建置並啟動 Docker 服務
+
+```
+docker compose up --build
+
+```
+
+
+瀏覽器
+```
+http://localhost:8000
 ```
