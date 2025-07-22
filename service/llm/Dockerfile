@@ -4,17 +4,17 @@ FROM python:3.10-slim
 
 # 1. 安装系统更新与编译工具、升级 pip
 RUN apt-get update \
- && apt-get install -y --no-install-recommends \
-      build-essential \
-      libffi-dev \
-      libssl-dev \
- && rm -rf /var/lib/apt/lists/* \
- && pip install --upgrade pip
+     && apt-get install -y --no-install-recommends \
+     build-essential \
+     libffi-dev \
+     libssl-dev \
+     && rm -rf /var/lib/apt/lists/* \
+     && pip install --upgrade pip
 
 WORKDIR /app
 
 # 2. 复制 requirements.txt 并安装所有 Python 依赖
-COPY requirements.txt .
+COPY service/llm/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 3. 复制 LLM 服务代码

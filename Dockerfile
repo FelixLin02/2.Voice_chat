@@ -11,8 +11,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 複製程式碼
-COPY app ./app
-COPY static ./static
+COPY . .
+
+ENV PYTHONPATH=/app
 
 # 创建 /data 目录，用于数据库文件挂载
 RUN mkdir -p /data

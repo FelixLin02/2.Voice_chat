@@ -1,5 +1,6 @@
 version: '3.8'
 services:
+  # STT 服务
   stt:
     build:
       context: .
@@ -8,7 +9,10 @@ services:
       - ./models/asr25:/models/asr25:ro
     ports:
       - "8001:8001"
+    environment:
+      - MR_BREEZE_MODEL_ID=MediaTek-Research/Breeze-ASR-25
 
+  # LLM 服务
   llm:
     build:
       context: .
@@ -17,23 +21,24 @@ services:
       - "8002:8002"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - BREEZE_API_KEY=${BREEZE_API_KEY}
 
+  # 主应用服务 (API Gateway 和静态文件服务)
   app:
     build:
       context: .
       dockerfile: Dockerfile
+    # volumes: # <-- 暫時註釋掉這行，因為不再操作 chat.db
+    #   - ./app/chat.db:/data/chat.db # <-- 暫時註釋掉這行
     ports:
       - "8000:8000"
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - BREEZE_API_KEY=${BREEZE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY} # app 服务可能也需要，如果它直接调用 OpenAI
     depends_on:
-      - stt
+      - stt # app 依赖 stt 和 llm 服务
       - llm
+      # - db # <-- 暫時註釋掉這行，不再依赖 db 服务
 
-  db:
-    image: nouchka/sqlite3
-    volumes:
-      - ./app/chat.db:/data/chat.db
-
+      # db: # <-- 暫時註釋掉整個 db 服务定义
+      #   image: nouchka/sqlite3
+      #   volumes:
+      #     - ./app/chat.db:/data/chat.db
