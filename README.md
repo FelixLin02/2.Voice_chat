@@ -27,6 +27,11 @@ TEST_STT_LLM/
 ├── docker-compose.yml        # Docker Compose 配置檔案，定義並協調所有服務的啟動
 ├── Dockerfile                # 主應用程式 (app 服務) 的 Docker 建置配置
 └── requirements.txt          # 主應用程式 (app 服務) 所需的 Python 依賴
+
+```
+請自行創件.env 檔內含OPEN_API_KEY
+```
+
 ```
 建置並啟動 Docker 服務
 
