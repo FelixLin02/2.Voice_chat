@@ -1,0 +1,6 @@
+fastapi>=0.95.2
+uvicorn[standard]>=0.21.0
+python-multipart>=0.0.5
+transformers # Hugging Face Transformers 库
+torch # PyTorch (或 tensorflow，根据您选择的 ML 框架)
+torchaudio # 用于音频加载和处理

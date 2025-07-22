@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="utf-8" />
+    <title>LIFF Voice Chat MVP</title>
+    <!-- 全域樣式設定 -->
+    <style>
+        /* 將 html 和 body 設為滿版，移除預設外距 */
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: "Segoe UI", sans-serif;
+            background: #9DC8F5;
+        }
+
+        /* 聊天區總容器：垂直排列，佔滿畫面 */
+        .chat-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* 訊息區：可滾動、內邊距，下方留給錄音欄 */
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 12px 72px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 共用泡泡樣式 */
+        .bubble {
+            max-width: 70%;
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 使用者語音泡泡：靠右、綠底白字 */
+        .bubble.user {
+            align-self: flex-end;
+            background: #00c352;
+            color: #fff;
+            border-radius: 16px 0 16px 16px;
+        }
+
+        /* 助理文字回覆泡泡：靠左、白底黑字 */
+        .bubble.reply {
+            align-self: flex-start;
+            background: #fff;
+            color: #111;
+            border-radius: 0 16px 16px 16px;
+        }
+
+        /* 隱藏 audio 元件，改用自製播放按鈕 */
+        .bubble audio {
+            display: none;
+        }
+
+        /* 時長文字樣式 */
+        .duration {
+            font-size: .85rem;
+            opacity: .8;
+        }
+
+        /* 字幕文字樣式 */
+        .caption {
+            font-size: .8rem;
+            color: #222;
+            margin-top: 2px;
+            margin-right: 8px;
+            text-align: right;
+        }
+
+        /* 播放按鈕的外框與游標設定 */
+        .play {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            outline: none;
+        }
+
+        /* 播放三角形圖示 */
+        .play::before {
+            content: "";
+            display: block;
+            width: 0;
+            height: 0;
+            border-top: 12px solid transparent;
+            border-bottom: 12px solid transparent;
+            border-left: 14px solid #fff;
+            margin-left: 4px;
+        }
+
+        /* 暫停狀態方塊圖示 */
+        .play.paused::before {
+            border: none;
+            width: 14px;
+            height: 14px;
+            background: #fff;
+            mask: linear-gradient(90deg, #000 0 40%, transparent 40% 60%, #000 60% 100%);
+        }
+
+        /* 聲波圖示 */
+        .wave {
+            width: 18px;
+            height: 18px;
+            background: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http://www.w3.org/2000/svg'%20width%3D'18'%20height%3D'18'%20viewBox%3D'0%200%2018%2018'%3E%3Crect%20x%3D'2'%20y%3D'4'%20width%3D'2'%20height%3D'10'%20fill%3D'white'/%3E%3Crect%20x%3D'8'%20y%3D'2'%20width%3D'2'%20height%3D'14'%20fill%3D'white'/%3E%3Crect%20x%3D'14'%20y%3D'5'%20width%3D'2'%20height%3D'8'%20fill%3D'white'/%3E%3C/svg%3E") no-repeat center/contain;
+        }
+
+        /* 錄音欄固定在底部 */
+        .inputbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #fff;
+            padding: 10px 0;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* 錄音按鈕樣式 */
+        #recBtn {
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            background: #f14141;
+            border: 8px solid #f3f3f3;
+            cursor: pointer;
+            transition: all .2s ease;
+        }
+
+        /* 錄音中按鈕縮小並變色 */
+        #recBtn.recording {
+            background: #d60000;
+            transform: scale(0.9);
+        }
+
+        /* 錄音狀態文字 */
+        #status {
+            position: absolute;
+            top: -22px;
+            font-size: .8rem;
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 整體聊天容器 -->
+    <div class="chat-wrapper">
+        <!-- 顯示訊息泡泡的區塊 -->
+        <div id="messages"></div>
+        <!-- 底部錄音控制欄 -->
+        <div class="inputbar">
+            <div id="status"></div> <!-- 顯示錄音狀態 -->
+            <button id="recBtn" title="點擊開始錄音"></button> <!-- 錄音按鈕 -->
+        </div>
+    </div>
+
+    <script>
+        // API_BASE: 指向 FastAPI 提供的後端服務（8000 埠）
+        const API_BASE = "http://localhost:8000";
+
+        let recBtn = document.getElementById('recBtn');
+        let statusEl = document.getElementById('status');
+        let msgs = document.getElementById('messages');
+        let mediaRec, chunks = [], isRec = false;
+
+        // 錄音按鈕點擊事件
+        recBtn.onclick = async () => {
+            if (!isRec) {
+                // 1. 開始錄音
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRec = new MediaRecorder(stream, { mimeType: "audio/webm" });
+                    mediaRec.ondataavailable = e => chunks.push(e.data);
+                    mediaRec.start();
+                    recBtn.classList.add('recording');
+                    statusEl.textContent = "錄音中…";
+                    isRec = true;
+                } catch (err) {
+                    console.error("Failed to get media devices:", err);
+                    statusEl.textContent = "無法取得麥克風權限";
+                }
+            } else {
+                // 2. 停止錄音並上傳
+                mediaRec.stop();
+                mediaRec.onstop = async () => {
+                    const blob = new Blob(chunks, { type: "audio/webm" });
+                    chunks = [];
+
+                    // 顯示使用者語音泡泡
+                    const userBubble = addBubble(blob, "", "user");
+                    statusEl.textContent = "上傳辨識中…";
+
+                    // 組裝 FormData，key 用 audio
+                    const form = new FormData();
+                    form.append("audio", blob, "rec.webm");
+
+                    try {
+                        // 3. 呼叫 STT 轉文字 (现在通过 app 服务的 API Gateway)
+                        const r = await fetch(`${API_BASE}/api/transcribe`, { // <-- 修改这里
+                            method: "POST",
+                            body: form
+                        });
+                        const j = await r.json();
+                        if (!r.ok) { // 检查响应状态码，如果不是 2xx，则抛出错误
+                            throw new Error(j.detail || `STT error: ${r.status}`);
+                        }
+                        // 在使用者泡泡下方顯示轉文字字幕
+                        addBubbleCaption(userBubble, j.text);
+
+                        // 4. 呼叫 LLM 取得回覆 (现在通过 app 服务的 API Gateway)
+                        const r2 = await fetch(`${API_BASE}/api/generate_llm_response`, { // <-- 修改这里
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ text: j.text })
+                        });
+                        const j2 = await r2.json();
+                        if (!r2.ok) { // 检查响应状态码
+                            throw new Error(j2.detail || `LLM error: ${r2.status}`);
+                        }
+                        // 顯示助理文字回覆泡泡
+                        addTextBubble(j2.reply);
+
+                    } catch (err) {
+                        console.error("Fetch error:", err);
+                        statusEl.textContent = `發生錯誤: ${err.message}`;
+                    } finally {
+                        statusEl.textContent = "";
+                    }
+                };
+                recBtn.classList.remove('recording');
+                isRec = false;
+            }
+        };
+
+        /**
+         * 新增語音泡泡
+         * @param {Blob} blob 音訊 Blob
+         * @param {string} transcriptTxt 字幕文字
+         * @param {string} role 'user' 或 'reply'
+         */
+        function addBubble(blob, transcriptTxt = "", role = "user") {
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+
+            const bubble = document.createElement('div');
+            bubble.className = `bubble ${role}`;
+            bubble.innerHTML = `
+                <button class="play"></button>
+                <div class="wave"></div>
+                <span class="duration">00:00</span>
+            `;
+            bubble.appendChild(audio);
+            msgs.appendChild(bubble);
+            msgs.scrollTop = msgs.scrollHeight;
+
+            // 載入後更新時長
+            audio.onloadedmetadata = () => {
+                bubble.querySelector('.duration').textContent = fmt(audio.duration);
+            };
+            // 播放 / 暫停切換
+            bubble.querySelector('.play').onclick = e => {
+                if (audio.paused) {
+                    audio.play();
+                    e.target.classList.add('paused');
+                } else {
+                    audio.pause();
+                    e.target.classList.remove('paused');
+                }
+            };
+            // 播放結束时重置播放按钮状态
+            audio.onended = () => {
+                bubble.querySelector('.play').classList.remove('paused');
+            };
+
+
+            // 如果有字幕文字，加入 caption 元素
+            if (transcriptTxt) {
+                const cap = document.createElement('div');
+                cap.className = "caption";
+                cap.textContent = transcriptTxt;
+                bubble.appendChild(cap);
+            }
+            return bubble;
+        }
+
+        /**
+         * 為既有泡泡新增/更新字幕
+         */
+        function addBubbleCaption(bubble, txt) {
+            let cap = bubble.querySelector('.caption');
+            if (!cap) {
+                cap = document.createElement('div');
+                cap.className = 'caption';
+                bubble.appendChild(cap);
+            }
+            cap.textContent = txt;
+        }
+
+        /**
+         * 新增純文字回覆泡泡
+         */
+        function addTextBubble(text) {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble reply';
+            bubble.textContent = text;
+            msgs.appendChild(bubble);
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        /**
+         * 將秒數格式化為 00:SS
+         */
+        function fmt(sec) {
+            return '00:' + String(Math.round(sec)).padStart(2, '0');
+        }
+    </script>
+</body>
+
+</html>

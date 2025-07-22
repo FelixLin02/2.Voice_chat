@@ -1,0 +1,4 @@
+fastapi>=0.95.2
+uvicorn[standard]>=0.21.0
+python-multipart>=0.0.5
+httpx # 用于 app 服务作为 API Gateway 调用其他微服务
