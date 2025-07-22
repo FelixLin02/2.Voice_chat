@@ -3,7 +3,7 @@
 
 1. 檔案與目錄結構
 本專案採用微服務架構，主要目錄和檔案的用途如下：
-
+```
 TEST_STT_LLM/
 ├── app/                      # 主應用程式邏輯和資料庫模組
 │   ├── __init__.py           # 標示 'app' 為 Python 套件 (package)
@@ -27,3 +27,4 @@ TEST_STT_LLM/
 ├── docker-compose.yml        # Docker Compose 配置檔案，定義並協調所有服務的啟動
 ├── Dockerfile                # 主應用程式 (app 服務) 的 Docker 建置配置
 └── requirements.txt          # 主應用程式 (app 服務) 所需的 Python 依賴
+```
